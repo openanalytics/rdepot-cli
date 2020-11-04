@@ -12,13 +12,21 @@ var (
     Use:   "rdepot",
     Short: "rdepot command line interface",
     Long: `RDepot is a solution of R package repository management.
-                  Created and maintained by Open Analytics.
-                  More information is available at http://rdepot.io`,
+
+  More information is available at http://rdepot.io
+  Open Analytics 2020`,
     Run: func(cmd *cobra.Command, args []string) {
       // Do Stuff Here
     },
   }
+  Host string
+  Token string
 )
+
+func init() {
+  rootCmd.PersistentFlags().StringVarP(&Host, "host", "", "http://localhost", "RDepot host")
+  rootCmd.PersistentFlags().StringVarP(&Token, "token", "", "", "API token")
+}
 
 func Execute() error {
   return rootCmd.Execute()
