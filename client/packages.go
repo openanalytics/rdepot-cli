@@ -35,63 +35,70 @@ func ListPackages(cfg RDepotConfig) ([]byte, error) {
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Authorization", "Bearer "+cfg.Token)
 
-	resp, err := http.DefaultClient.Do(req)
+	res, err := http.DefaultClient.Do(req)
 
 	switch {
 	case err != nil:
 		return nil, err
-	case resp.StatusCode != 200:
-		defer resp.Body.Close()
-		return ioutil.ReadAll(resp.Body)
+	case res.StatusCode != 200:
+		defer res.Body.Close()
+		return ioutil.ReadAll(res.Body)
 	default:
-		defer resp.Body.Close()
-		return ioutil.ReadAll(resp.Body)
+		defer res.Body.Close()
+		return ioutil.ReadAll(res.Body)
 	}
 
 }
 
-func SubmitPackage(cfg RDepotConfig, archive string, repository string, replace bool) error {
+func SubmitPackage(cfg RDepotConfig, archive string, repository string, replace bool) ([]byte, error) {
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
 	fr, err := os.Open(archive)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if fw, err := createFormGZip(w, "file", archive); err != nil {
-		return err
+		return nil, err
 	} else {
 		io.Copy(fw, fr)
 	}
 
 	if err := w.WriteField("repository", repository); err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := w.WriteField("replace", strconv.FormatBool(replace)); err != nil {
-		return err
+		return nil, err
 	}
 
 	w.Close()
 
-	req, err := http.NewRequest("POST", "/api/manager/packages/submit", &b)
+	req, err := http.NewRequest(
+		"POST",
+		cfg.Host+"/api/manager/packages/submit",
+		&b)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	req.Header.Set("Content-Type", w.FormDataContentType())
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Authorization", "Bearer "+cfg.Token)
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("bad status: %s", res.Status)
+		return nil, fmt.Errorf("bad status: %s", res.Status)
 	}
 
-	return nil
+	defer res.Body.Close()
+	return ioutil.ReadAll(res.Body)
+
 }
 
 var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")

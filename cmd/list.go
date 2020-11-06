@@ -24,20 +24,17 @@ var listCmd = &cobra.Command{
 	Long:      `List one or many resources`,
 	Args:      cobra.ExactValidArgs(1),
 	ValidArgs: []string{"packages"},
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg := client.RDepotConfig{
 			Host:  Host,
 			Token: Token,
 		}
 
-		fmt.Println(cfg)
-		res, err := client.ListPackages(cfg)
-		switch {
-		case err != nil:
-			fmt.Println("Error!")
-			fmt.Println(err)
-		default:
+		if res, err := client.ListPackages(cfg); err != nil {
+			return err
+		} else {
 			fmt.Printf(string(res))
+			return nil
 		}
 	},
 }

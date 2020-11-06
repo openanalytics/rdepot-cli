@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"github.com/spf13/cobra"
 
 	"openanalytics.eu/rdepot/cli/client"
@@ -22,12 +23,23 @@ var (
 		Use:   "submit",
 		Short: "Submit a package",
 		Long:  `Submit a package to RDepot.`,
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := client.RDepotConfig{
 				Host:  Host,
 				Token: Token,
 			}
-			client.SubmitPackage(cfg, filePath, repository, replace)
+			res, err := client.SubmitPackage(cfg, filePath, repository, replace)
+			if err != nil {
+				return err
+			}
+
+			out, err := formatOutput(ByteArray(res))
+			if err != nil {
+				return err
+			}
+
+			fmt.Printf(out)
+			return nil
 		},
 	}
 )
