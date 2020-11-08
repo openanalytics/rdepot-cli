@@ -13,7 +13,7 @@ pipeline {
     }
 
     environment {
-        shortCommit = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%h'").trim()
+        shortCommit = sh(returnStdout: true, script: "echo ${env.GIT_COMMIT} | cut -c 1-8").trim()
         IMAGE = "rdepot-cli"
         NS = "oa-infrastructure"
         REG = "196229073436.dkr.ecr.eu-west-1.amazonaws.com"
