@@ -8,10 +8,10 @@ import (
 )
 
 func init() {
-	submitCmd.PersistentFlags().StringVarP(&repository, "repo", "r", "", "repository to upload to")
-	submitCmd.PersistentFlags().StringVarP(&filePath, "file", "f", "", "R package archive to upload")
-	submitCmd.PersistentFlags().BoolVarP(&replace, "replace", "", true, "replace existing package version")
-	rootCmd.AddCommand(submitCmd)
+	packagesSubmitCmd.PersistentFlags().StringVarP(&repository, "repo", "r", "", "repository to upload to")
+	packagesSubmitCmd.PersistentFlags().StringVarP(&filePath, "file", "f", "", "R package archive to upload")
+	packagesSubmitCmd.PersistentFlags().BoolVarP(&replace, "replace", "", true, "replace existing package version")
+	packagesCmd.AddCommand(packagesSubmitCmd)
 }
 
 var (
@@ -19,7 +19,7 @@ var (
 	filePath   string
 	replace    bool
 
-	submitCmd = &cobra.Command{
+	packagesSubmitCmd = &cobra.Command{
 		Use:   "submit",
 		Short: "Submit a package",
 		Long:  `Submit a package to RDepot.`,

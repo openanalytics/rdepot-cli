@@ -8,22 +8,14 @@ import (
 	"openanalytics.eu/rdepot/cli/client"
 )
 
-var (
-	handlers = map[string]func(client.RDepotConfig) ([]byte, error){
-		"packages": client.ListPackages,
-	}
-)
-
 func init() {
-	rootCmd.AddCommand(listCmd)
+	packagesCmd.AddCommand(packagesListCmd)
 }
 
-var listCmd = &cobra.Command{
-	Use:       "list [resource]",
-	Short:     "list one or many resources",
-	Long:      `List one or many resources`,
-	Args:      cobra.ExactValidArgs(1),
-	ValidArgs: []string{"packages"},
+var packagesListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List one or many packages",
+	Long:  `List one or many packages`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg := client.RDepotConfig{
 			Host:  Host,
