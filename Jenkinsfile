@@ -17,6 +17,7 @@ pipeline {
         IMAGE = "rdepot-cli"
         NS = "oa-infrastructure"
         REG = "196229073436.dkr.ecr.eu-west-1.amazonaws.com"
+        DOCKER_BUILDKIT = 1
     }
     
     stages {
@@ -26,6 +27,8 @@ pipeline {
                 sh """
                 docker build \
                   --cache-from ${env.REG}/${env.NS}/${env.IMAGE}:latest \
+                  --target bin-unix \
+                  --platform local \
                   --tag ${env.NS}/${env.IMAGE} \
                   --tag ${env.NS}/${env.IMAGE}:${env.shortCommit} \
                   .
