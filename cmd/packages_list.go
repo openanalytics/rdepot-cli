@@ -17,12 +17,7 @@ var packagesListCmd = &cobra.Command{
 	Short: "List one or many packages",
 	Long:  `List one or many packages`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg := client.RDepotConfig{
-			Host:  Host,
-			Token: Token,
-		}
-
-		if res, err := client.ListPackages(cfg); err != nil {
+		if res, err := client.ListPackages(Config); err != nil {
 			return err
 		} else {
 			fmt.Printf(string(res))

@@ -24,11 +24,7 @@ var (
 		Short: "Submit a package",
 		Long:  `Submit a package to RDepot.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg := client.RDepotConfig{
-				Host:  Host,
-				Token: Token,
-			}
-			res, err := client.SubmitPackage(cfg, filePath, repository, replace)
+			res, err := client.SubmitPackage(Config, filePath, repository, replace)
 			if err != nil {
 				return err
 			}
