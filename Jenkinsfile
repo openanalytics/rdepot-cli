@@ -40,7 +40,14 @@ pipeline {
     post {
         success  {
             ecrPush "${env.REG}", "${env.NS}/${env.IMAGE}", "latest", '', 'eu-west-1' 
-            ecrPush "${env.REG}", "${env.NS}/${env.IMAGE}", "${env.shortCommit}", '', 'eu-west-1'   
+            ecrPush "${env.REG}", "${env.NS}/${env.IMAGE}", "${env.shortCommit}", '', 'eu-west-1'
+            withDockerRegistry([
+                    credentialsId: "openanalytics-dockerhub",
+                    url: ""]) {
+
+                sh "docker push openanalytics/${env.IMAGE}:latest"
+            }
+
         }
     }
 }
