@@ -30,6 +30,7 @@ pipeline {
                   --target bin-unix \
                   --platform local \
                   --tag ${env.NS}/${env.IMAGE} \
+                  --tag opananalytics/${env.IMAGE}:latest \
                   --tag ${env.NS}/${env.IMAGE}:${env.shortCommit} \
                   .
                 """
