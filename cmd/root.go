@@ -75,12 +75,16 @@ type ByteArray []byte
 func formatOutput(out model.Output) (string, error) {
 	switch output {
 	case "json":
-		return out.FormatJSON()
+		if res, err := model.FormatJSON(out); err != nil {
+			return "", err
+		} else {
+			return string(res), nil
+		}
 	default:
 		return "", fmt.Errorf("error type not supported: %s", output)
 	}
 }
 
-func (o ByteArray) FormatJSON() (string, error) {
-	return string(o), nil
+func (o ByteArray) FormatJSON() ([]byte, error) {
+	return o, nil
 }

@@ -31,10 +31,15 @@ var packagesListCmd = &cobra.Command{
 	Short: "List one or many packages",
 	Long:  `List one or many packages`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if res, err := client.ListPackages(Config); err != nil {
+		pkgs, err := client.ListPackages(client.DefaultClient(), Config)
+		if err != nil {
+			return err
+		}
+
+		if out, err := formatOutput(pkgs); err != nil {
 			return err
 		} else {
-			fmt.Printf(string(res))
+			fmt.Print(out)
 			return nil
 		}
 	},

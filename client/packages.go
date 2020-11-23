@@ -16,6 +16,7 @@ package client
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -26,6 +27,7 @@ import (
 	//"log"
 	"net/http"
 	"net/textproto"
+	"openanalytics.eu/rdepot/cli/model"
 	//"net/http/httptest"
 	//"net/http/httputil"
 )
@@ -35,7 +37,11 @@ type RDepotConfig struct {
 	Token string
 }
 
-func ListPackages(cfg RDepotConfig) ([]byte, error) {
+func DefaultClient() *http.Client {
+	return http.DefaultClient
+}
+
+func ListPackages(client *http.Client, cfg RDepotConfig) ([]model.Package, error) {
 
 	req, err := http.NewRequest(
 		"GET",
@@ -49,22 +55,31 @@ func ListPackages(cfg RDepotConfig) ([]byte, error) {
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Authorization", "Bearer "+cfg.Token)
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := client.Do(req)
 
-	switch {
-	case err != nil:
+	if err != nil {
 		return nil, err
-	case res.StatusCode != 200:
-		defer res.Body.Close()
-		return ioutil.ReadAll(res.Body)
-	default:
-		defer res.Body.Close()
-		return ioutil.ReadAll(res.Body)
 	}
+
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("bad status: %s", res.Status)
+	}
+
+	defer res.Body.Close()
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var pkgs []model.Package
+	if err := json.Unmarshal(body, &pkgs); err != nil {
+		return nil, fmt.Errorf("could not unpack response: %s", err)
+	}
+	return pkgs, nil
 
 }
 
-func SubmitPackage(cfg RDepotConfig, archive string, repository string, replace bool) ([]byte, error) {
+func SubmitPackage(client *http.Client, cfg RDepotConfig, archive string, repository string, replace bool) ([]byte, error) {
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
@@ -101,7 +116,7 @@ func SubmitPackage(cfg RDepotConfig, archive string, repository string, replace 
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Authorization", "Bearer "+cfg.Token)
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}

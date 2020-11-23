@@ -14,6 +14,12 @@
 
 package model
 
-type Output interface {
-	FormatJSON() (string, error)
+import (
+	"encoding/json"
+)
+
+type Output interface{}
+
+func FormatJSON(o Output) ([]byte, error) {
+	return json.MarshalIndent(o, "", "  ")
 }
