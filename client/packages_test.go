@@ -15,11 +15,52 @@
 package client
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
+func TestListPackages(t *testing.T) {
+
+	var tests = []struct {
+		body  []byte
+		nPkgs int
+	}{
+		{
+			body:  []byte(`[]`),
+			nPkgs: 0,
+		},
+		{
+			body:  []byte(`[{"id":4,"version":"0.0.1","submission":{"id":4,"changes":null,"accepted":true,"deleted":false},"name":"foo","description":"foo description","author":"Foo Author","depends":null,"imports":null,"suggests":null,"systemRequirements":null,"license":"GPL-2","title":"foo title","source":"/opt/rdepot/repositories/3/36142023/foo_0.0.1.tar.gz","md5sum":"de696d506f435e040f0b215da4d3c643","active":true,"deleted":false,"packageEvents":null}]`),
+			nPkgs: 1,
+		},
+	}
+
+	for _, test := range tests {
+
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			want := "/api/manager/packages/list"
+			if req.URL.String() != want {
+				t.Errorf("Expected %s, got %s", want, req.URL.String())
+			}
+			rw.Write(test.body)
+		}))
+		defer server.Close()
+
+		config := RDepotConfig{Host: server.URL, Token: "validtoken"}
+
+		res, err := ListPackages(server.Client(), config)
+
+		if err != nil {
+			t.Errorf("Got error: %s", err)
+		}
+
+		if len(res) != test.nPkgs {
+			t.Errorf("Expected %d packages, got %d", test.nPkgs, len(res))
+		}
+	}
+
+}
+
 func TestSubmitPackage(t *testing.T) {
-	//if 1 == 1 {
-	//t.Error("x!")
-	//}
 }
