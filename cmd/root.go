@@ -70,6 +70,25 @@ func er(msg interface{}) {
 	os.Exit(1)
 }
 
+func formatMessage(msg client.Message, strict bool) (string, error) {
+	if class, err := msg.Class(); err != nil {
+		return "", err
+	} else {
+		switch class {
+		case "warning":
+			if strict {
+				return "", fmt.Errorf(msg.Content())
+			} else {
+				return fmt.Sprintf("Warning: %s", msg.Content()), nil
+			}
+		case "error":
+			return "", fmt.Errorf(msg.Content())
+		default:
+			return msg.Content(), nil
+		}
+	}
+}
+
 type ByteArray []byte
 
 func formatOutput(out model.Output) (string, error) {

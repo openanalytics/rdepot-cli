@@ -16,20 +16,18 @@ package client
 
 import (
 	"bytes"
+	// "encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
-	"os"
-	"strconv"
-	"strings"
-	//"log"
 	"net/http"
 	"net/textproto"
 	"openanalytics.eu/rdepot/cli/model"
-	//"net/http/httptest"
-	//"net/http/httputil"
+	"os"
+	"strconv"
+	"strings"
 )
 
 type RDepotConfig struct {
@@ -79,27 +77,61 @@ func ListPackages(client *http.Client, cfg RDepotConfig) ([]model.Package, error
 
 }
 
-func SubmitPackage(client *http.Client, cfg RDepotConfig, archive string, repository string, replace bool) ([]byte, error) {
+type Pair struct {
+	First  string `json:"first"`
+	Second string `json:"second"`
+}
+
+type SubmissionResult struct {
+	Success Pair `json:"success"`
+	Warning Pair `json:"warning"`
+	Error   Pair `json:"error"`
+}
+
+type Message interface {
+	Class() (string, error)
+	Content() string
+}
+
+func (s SubmissionResult) Class() (string, error) {
+	switch {
+	case s.Success.First != "":
+		return "success", nil
+	case s.Warning.First != "":
+		return "warning", nil
+	case s.Error.First != "":
+		return "error", nil
+	default:
+		return "", fmt.Errorf("Unrecognized response type")
+	}
+}
+
+func (s SubmissionResult) Content() string {
+	return s.Success.Second + s.Warning.Second + s.Error.Second
+}
+
+func SubmitPackage(client *http.Client, cfg RDepotConfig, archive string, repository string, replace bool) (Message, error) {
+	var subres SubmissionResult
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
 	fr, err := os.Open(archive)
 	if err != nil {
-		return nil, err
+		return subres, err
 	}
 
 	if fw, err := createFormGZip(w, "file", archive); err != nil {
-		return nil, err
+		return subres, err
 	} else {
 		io.Copy(fw, fr)
 	}
 
 	if err := w.WriteField("repository", repository); err != nil {
-		return nil, err
+		return subres, err
 	}
 
 	if err := w.WriteField("replace", strconv.FormatBool(replace)); err != nil {
-		return nil, err
+		return subres, err
 	}
 
 	w.Close()
@@ -109,7 +141,7 @@ func SubmitPackage(client *http.Client, cfg RDepotConfig, archive string, reposi
 		cfg.Host+"/api/manager/packages/submit",
 		&b)
 	if err != nil {
-		return nil, err
+		return subres, err
 	}
 
 	req.Header.Set("Content-Type", w.FormDataContentType())
@@ -118,15 +150,24 @@ func SubmitPackage(client *http.Client, cfg RDepotConfig, archive string, reposi
 
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return subres, err
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("bad status: %s", res.Status)
+		return subres, fmt.Errorf("bad status: %s", res.Status)
 	}
 
 	defer res.Body.Close()
-	return ioutil.ReadAll(res.Body)
+	resBody, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return subres, err
+	}
+
+	if err := json.Unmarshal(resBody, &subres); err != nil {
+		return subres, fmt.Errorf("could not unpack response: %s", err)
+	}
+
+	return subres, nil
 
 }
 

@@ -25,12 +25,14 @@ func init() {
 	packagesSubmitCmd.PersistentFlags().StringVarP(&repository, "repo", "r", "", "repository to upload to")
 	packagesSubmitCmd.PersistentFlags().StringVarP(&filePath, "file", "f", "", "R package archive to upload")
 	packagesSubmitCmd.PersistentFlags().BoolVarP(&replace, "replace", "", true, "replace existing package version")
+	packagesSubmitCmd.PersistentFlags().BoolVarP(&strict, "strict", "", true, "convert warnings into errors")
 	packagesCmd.AddCommand(packagesSubmitCmd)
 }
 
 var (
 	repository string
 	filePath   string
+	strict     bool
 	replace    bool
 
 	packagesSubmitCmd = &cobra.Command{
@@ -43,12 +45,12 @@ var (
 				return err
 			}
 
-			out, err := formatOutput(ByteArray(res))
+			msg, err := formatMessage(res, strict)
 			if err != nil {
 				return err
 			}
 
-			fmt.Printf(out)
+			fmt.Println(fmt.Sprintf("Package %s: %s", filePath, msg))
 			return nil
 		},
 	}
