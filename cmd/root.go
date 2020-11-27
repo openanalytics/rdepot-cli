@@ -65,7 +65,7 @@ func Execute() error {
 	return rootCmd.Execute()
 }
 
-func er(msg interface{}) {
+func FailOn(msg interface{}) {
 	fmt.Println("Error:", msg)
 	os.Exit(1)
 }

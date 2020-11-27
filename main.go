@@ -15,11 +15,12 @@
 package main
 
 import (
-
-  "openanalytics.eu/rdepot/cli/cmd"
+	"openanalytics.eu/rdepot/cli/cmd"
+	"os"
 )
 
 func main() {
-  cmd.Execute()
+	if err := cmd.Execute(); err != nil {
+		os.Exit(1)
+	}
 }
-
