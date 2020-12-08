@@ -110,7 +110,7 @@ func (s SubmissionResult) Content() string {
 	return s.Success.Second + s.Warning.Second + s.Error.Second
 }
 
-func SubmitPackage(client *http.Client, cfg RDepotConfig, archive string, repository string, replace bool, generateManuals bool) (Message, error) {
+func SubmitPackage(client *http.Client, cfg RDepotConfig, archive string, repository string, replace bool, generateManual bool) (Message, error) {
 	var subres SubmissionResult
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
@@ -134,8 +134,8 @@ func SubmitPackage(client *http.Client, cfg RDepotConfig, archive string, reposi
 		return subres, err
 	}
 
-	if !generateManuals { // TODO: remove in future versions
-		if err := w.WriteField("generateManuals", strconv.FormatBool(generateManuals)); err != nil {
+	if !generateManual { // TODO: remove in future versions
+		if err := w.WriteField("generateManual", strconv.FormatBool(generateManual)); err != nil {
 			return subres, err
 		}
 	}

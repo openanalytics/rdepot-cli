@@ -26,23 +26,23 @@ func init() {
 	packagesSubmitCmd.PersistentFlags().StringVarP(&filePath, "file", "f", "", "R package archive to upload")
 	packagesSubmitCmd.PersistentFlags().BoolVarP(&replace, "replace", "", true, "replace existing package version")
 	packagesSubmitCmd.PersistentFlags().BoolVarP(&strict, "strict", "", true, "convert warnings into errors")
-	packagesSubmitCmd.PersistentFlags().BoolVarP(&generateManuals, "generate-manuals", "", true, "generate a manual for the submitted package")
+	packagesSubmitCmd.PersistentFlags().BoolVarP(&generateManual, "generate-manual", "", true, "generate a manual for the submitted package")
 	packagesCmd.AddCommand(packagesSubmitCmd)
 }
 
 var (
-	repository      string
-	filePath        string
-	strict          bool
-	replace         bool
-	generateManuals bool
+	repository     string
+	filePath       string
+	strict         bool
+	replace        bool
+	generateManual bool
 
 	packagesSubmitCmd = &cobra.Command{
 		Use:   "submit",
 		Short: "Submit a package",
 		Long:  `Submit a package to RDepot.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			res, err := client.SubmitPackage(client.DefaultClient(), Config, filePath, repository, replace, generateManuals)
+			res, err := client.SubmitPackage(client.DefaultClient(), Config, filePath, repository, replace, generateManual)
 			if err != nil {
 				return err
 			}
