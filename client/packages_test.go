@@ -17,6 +17,7 @@ package client
 import (
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 )
 
@@ -62,5 +63,56 @@ func TestListPackages(t *testing.T) {
 
 }
 
+func expectEqual(t *testing.T, expected interface{}, actual interface{}) {
+	if actual != expected {
+		t.Errorf("Expected %s, got %s", expected, actual)
+	}
+}
+
 func TestSubmitPackage(t *testing.T) {
+	var tests = []struct {
+		body    []byte
+		replace bool
+	}{
+		{
+			body:    []byte(`{"success": {"first": "oaColors_0.0.4.tar.gz", "second": "submission created successfully"}}`),
+			replace: false,
+		},
+	}
+
+	for _, test := range tests {
+
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if actual, expect := req.URL.String(), "/api/manager/packages/submit"; actual != expect {
+				t.Errorf("Expected %s, got %s", expect, actual)
+			}
+			expectEqual(t, "/api/manager/packages/submit", req.URL.String())
+			expectEqual(t, strconv.FormatBool(test.replace), req.FormValue("replace"))
+			expectEqual(t, "test", req.FormValue("repository"))
+			if _, fh, err := req.FormFile("file"); err != nil {
+				t.Errorf("Error: %s", err)
+			} else if actual, expect := fh.Header.Get("Content-Type"), "application/gzip"; actual != expect {
+				t.Errorf("Expected content type: %s, got %s", expect, actual)
+			}
+
+			rw.Write(test.body)
+		}))
+		defer server.Close()
+
+		config := RDepotConfig{Host: server.URL, Token: "validtoken"}
+
+		res, err := SubmitPackage(server.Client(), config, "testdata/oaColors_0.0.4.tar.gz", "test", test.replace, true)
+
+		if err != nil {
+			t.Errorf("Error: %s", err)
+		}
+
+		if mc, err := res.Class(); err != nil {
+			t.Errorf("Error: %s", err)
+			if mc != "success" {
+				t.Errorf("Unexpected message class: %s", mc)
+			}
+		}
+
+	}
 }
