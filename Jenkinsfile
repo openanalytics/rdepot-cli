@@ -18,7 +18,7 @@ pipeline {
         NS = "oa-infrastructure"
         REG = "196229073436.dkr.ecr.eu-west-1.amazonaws.com"
         DOCKER_BUILDKIT = 1
-        TAG = ${env.BRANCH_NAME == 'master' ? 'latest' : env.BRANCH_NAME}
+        TAG = "${env.BRANCH_NAME == 'master' ? 'latest' : env.BRANCH_NAME}"
     }
     
     stages {
