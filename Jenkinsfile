@@ -64,6 +64,7 @@ pipeline {
                   --tag ${env.NS}/${env.IMAGE} \
                   --tag openanalytics/${env.IMAGE}:${env.TAG} \
                   --tag ${env.NS}/${env.IMAGE}:${env.shortCommit} \
+                  --tag ${env.NS}/${env.IMAGE}:${env.TAG} \
                   .
                 """
             }
