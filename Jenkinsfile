@@ -33,6 +33,7 @@ pipeline {
                         docker build \
                           --cache-from ${env.REG}/${env.NS}/${env.IMAGE}:latest \
                           --target build \
+                          --output bin/ \
                           --platform ${PLATFORM} \
                           .
                         """
@@ -42,7 +43,8 @@ pipeline {
                     steps {
                         container('curl') {
                             withCredentials([usernameColonPassword(credentialsId: 'oa-jenkins', variable: 'USERPASS')]) {
-                                sh "curl -v -u $USERPASS --upload-file out/rdepot https://nexus.openanalytics.eu/repository/eu/openanalytics/rdepot/rdepot-cli/${env.BRANCH_NAME}/${env.BUILD_NUMBER}/latest"
+                                sh "gzip bin/rdepot"
+                                sh "curl -v -u $USERPASS --upload-file bin/rdepot.gz https://nexus.openanalytics.eu/repository/eu/openanalytics/rdepot/rdepot-cli/${env.BRANCH_NAME}/${env.BUILD_NUMBER}/rdepot.gz"
                             }
                         }
                     }
@@ -55,7 +57,7 @@ pipeline {
                 sh """
                 docker build \
                   --cache-from ${env.REG}/${env.NS}/${env.IMAGE}:latest \
-                  --target bin-unix \
+                  --target image \
                   --platform local \
                   --tag ${env.NS}/${env.IMAGE} \
                   --tag openanalytics/${env.IMAGE}:latest \

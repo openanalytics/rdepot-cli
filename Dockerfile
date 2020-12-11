@@ -7,11 +7,22 @@ RUN go mod download
 COPY . .
 ARG TARGETOS
 ARG TARGETARCH
-RUN mkdir -p /src/out
-RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /src/out/rdepot .
+RUN mkdir -p /out
+RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /out/rdepot .
 
-FROM alpine AS bin-unix
-COPY --from=build /src/out/rdepot /bin/rdepot
+FROM scratch AS bin-unix
+COPY --from=build /out/rdepot /
+
+FROM bin-unix AS bin-linux
+FROM bin-unix AS bin-darwin
+
+FROM scratch AS bin-windows
+COPY --from=build /out/rdepot /rdepot.exe
+
+FROM bin-${TARGETOS} AS bin
+
+FROM alpine AS image
+COPY --from=build /out/rdepot /bin/rdepot
 ENTRYPOINT ["/bin/rdepot"]
 CMD ["--help"]
 
