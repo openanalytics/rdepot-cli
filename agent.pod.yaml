@@ -11,6 +11,7 @@ spec:
       privileged: true
   - name: curl
     image: curlimages/curl:latest
+    tty: true
     command:
     - cat
 
