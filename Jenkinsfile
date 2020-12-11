@@ -18,6 +18,7 @@ pipeline {
         NS = "oa-infrastructure"
         REG = "196229073436.dkr.ecr.eu-west-1.amazonaws.com"
         DOCKER_BUILDKIT = 1
+        TAG = ${env.BRANCH_NAME == 'master' ? 'latest' : env.BRANCH_NAME}
     }
     
     stages {
@@ -29,9 +30,10 @@ pipeline {
             stages {
                 stage('Build') {
                     steps {
+                        ecrPull "${env.REG}", "${env.NS}/${env.IMAGE}", "${env.TAG}", '', 'eu-west-1'
                         sh """
                         docker build \
-                          --cache-from ${env.REG}/${env.NS}/${env.IMAGE}:latest \
+                          --cache-from ${env.REG}/${env.NS}/${env.IMAGE}:${env.TAG} \
                           --target bin \
                           --output bin/ \
                           --platform ${PLATFORM} \
@@ -44,7 +46,7 @@ pipeline {
                         container('curl') {
                             withCredentials([usernameColonPassword(credentialsId: 'oa-jenkins', variable: 'USERPASS')]) {
                                 sh "gzip bin/rdepot"
-                                sh "curl -u $USERPASS --upload-file bin/rdepot.gz https://nexus.openanalytics.eu/repository/releases/eu/openanalytics/rdepot/rdepot-cli/${env.BRANCH_NAME}/${env.BUILD_NUMBER}/rdepot.gz"
+                                sh "curl -u $USERPASS --upload-file bin/rdepot.gz https://nexus.openanalytics.eu/repository/releases/eu/openanalytics/rdepot/rdepot-cli/${env.TAG}/rdepot.gz"
                             }
                         }
                     }
@@ -53,14 +55,14 @@ pipeline {
         }
         stage('Build image'){
             steps {
-                ecrPull "${env.REG}", "${env.NS}/${env.IMAGE}", "latest", '', 'eu-west-1'
+                ecrPull "${env.REG}", "${env.NS}/${env.IMAGE}", "${env.TAG}", '', 'eu-west-1'
                 sh """
                 docker build \
-                  --cache-from ${env.REG}/${env.NS}/${env.IMAGE}:latest \
+                  --cache-from ${env.REG}/${env.NS}/${env.IMAGE}:${env.TAG} \
                   --target image \
                   --platform local \
                   --tag ${env.NS}/${env.IMAGE} \
-                  --tag openanalytics/${env.IMAGE}:latest \
+                  --tag openanalytics/${env.IMAGE}:${env.TAG} \
                   --tag ${env.NS}/${env.IMAGE}:${env.shortCommit} \
                   .
                 """
@@ -70,13 +72,13 @@ pipeline {
 
     post {
         success  {
-            ecrPush "${env.REG}", "${env.NS}/${env.IMAGE}", "latest", '', 'eu-west-1' 
+            ecrPush "${env.REG}", "${env.NS}/${env.IMAGE}", "${env.TAG}", '', 'eu-west-1' 
             ecrPush "${env.REG}", "${env.NS}/${env.IMAGE}", "${env.shortCommit}", '', 'eu-west-1'
             withDockerRegistry([
                     credentialsId: "openanalytics-dockerhub",
                     url: ""]) {
 
-                sh "docker push openanalytics/${env.IMAGE}:latest"
+                sh "docker push openanalytics/${env.IMAGE}:${env.TAG}"
             }
 
         }
