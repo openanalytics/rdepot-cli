@@ -32,7 +32,7 @@ pipeline {
                         sh """
                         docker build \
                           --cache-from ${env.REG}/${env.NS}/${env.IMAGE}:latest \
-                          --target build \
+                          --target bin \
                           --output bin/ \
                           --platform ${PLATFORM} \
                           .
