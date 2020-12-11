@@ -29,6 +29,6 @@ var versionCmd = &cobra.Command{
 	Short: "Print the version number of rdepot-cli",
 	Long:  `The version of rdepot-cli is increased in tandem with RDepot`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("rdepot-cli v1.4.1")
+		fmt.Println("rdepot-cli v1.4.2")
 	},
 }
