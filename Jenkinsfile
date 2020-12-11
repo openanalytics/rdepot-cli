@@ -27,7 +27,7 @@ pipeline {
               NAME = "rdepot"
             }
             stages {
-                stage('Build')
+                stage('Build') {
                     steps {
                         sh """
                         docker build \
