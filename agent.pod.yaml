@@ -9,4 +9,8 @@ spec:
     image: 196229073436.dkr.ecr.eu-west-1.amazonaws.com/oa-infrastructure/dind
     securityContext:
       privileged: true
+  - name: curl
+    image: curlimages/curl:latest
+    command:
+    - cat
 

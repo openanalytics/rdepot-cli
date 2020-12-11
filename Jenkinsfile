@@ -21,24 +21,28 @@ pipeline {
     }
     
     stages {
-        stage('Build') {
+        stage('Binaries') {
             environment {
               PLATFORM = "linux/amd64"
               NAME = "rdepot"
             }
-            steps {
-                sh """
-                docker build \
-                  --cache-from ${env.REG}/${env.NS}/${env.IMAGE}:latest \
-                  --target build \
-                  --platform ${PLATFORM} \
-                  .
-                """
+            stage('Build')
+                steps {
+                    sh """
+                    docker build \
+                      --cache-from ${env.REG}/${env.NS}/${env.IMAGE}:latest \
+                      --target build \
+                      --platform ${PLATFORM} \
+                      .
+                    """
+                }
             }
-            post {
-                success {
-                     withCredentials([usernameColonPassword(credentialsId: 'oa-jenkins', variable: 'USERPASS')]) {
-                        sh "curl -v -u $USERPASS --upload-file out/rdepot https://nexus.openanalytics.eu/repository/eu/openanalytics/rdepot/rdepot-cli/${env.BRANCH_NAME}/${env.BUILD_NUMBER}/latest"
+            stage('Publish') {
+                steps {
+                    container('curl') {
+                        withCredentials([usernameColonPassword(credentialsId: 'oa-jenkins', variable: 'USERPASS')]) {
+                            sh "curl -v -u $USERPASS --upload-file out/rdepot https://nexus.openanalytics.eu/repository/eu/openanalytics/rdepot/rdepot-cli/${env.BRANCH_NAME}/${env.BUILD_NUMBER}/latest"
+                        }
                     }
                 }
             }
