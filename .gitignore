@@ -1,3 +1,4 @@
 /rdepot
 /cli
 *.swp
+/bin/*
