@@ -44,7 +44,7 @@ pipeline {
                         container('curl') {
                             withCredentials([usernameColonPassword(credentialsId: 'oa-jenkins', variable: 'USERPASS')]) {
                                 sh "gzip bin/rdepot"
-                                sh "curl -v -u $USERPASS --upload-file bin/rdepot.gz https://nexus.openanalytics.eu/repository/eu/openanalytics/rdepot/rdepot-cli/${env.BRANCH_NAME}/${env.BUILD_NUMBER}/rdepot.gz"
+                                sh "curl -v -u $USERPASS --upload-file bin/rdepot.gz https://nexus.openanalytics.eu/repository/releases/eu/openanalytics/rdepot/rdepot-cli/${env.BRANCH_NAME}/${env.BUILD_NUMBER}/rdepot.gz"
                             }
                         }
                     }
