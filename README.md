@@ -15,5 +15,5 @@ rdepot version
 
 ## usage
 
-see `rdepot --help`
+see `rdepot --help` or [the docs page](./docs/rdepot.md)
 
