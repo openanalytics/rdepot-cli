@@ -6,4 +6,9 @@ repos:
         language: system
         entry: go run . doc
         files: ^cmd/.*\.go$
+      - id: license
+        name: update license headers 
+        language: system # go get -u github.com/google/addlicense
+        entry: addlicense -c "Open Analytics" -y 2020 -l apache *.go */*.go
+        files: ^.*\.go$
 
