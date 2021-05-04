@@ -1,0 +1,7 @@
+repos:
+  - repo: local
+    hooks:
+      - id: cobra-doc
+        name: cobra docs
+        language: system
+        entry: go run . doc
