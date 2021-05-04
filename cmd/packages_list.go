@@ -23,24 +23,29 @@ import (
 )
 
 func init() {
+	packagesListCmd.Flags().StringVarP(&repositoryFilter, "repo", "r", "", "repository to filter with")
 	packagesCmd.AddCommand(packagesListCmd)
 }
 
-var packagesListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List one or many packages",
-	Long:  `List one or many packages`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		pkgs, err := client.ListPackages(client.DefaultClient(), Config)
-		if err != nil {
-			return err
-		}
+var (
+	repositoryFilter string
 
-		if out, err := formatOutput(pkgs); err != nil {
-			return err
-		} else {
-			fmt.Print(out)
-			return nil
-		}
-	},
-}
+	packagesListCmd = &cobra.Command{
+		Use:   "list",
+		Short: "List one or many packages",
+		Long:  `List one or many packages`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			pkgs, err := client.ListPackages(client.DefaultClient(), Config, repositoryFilter)
+			if err != nil {
+				return err
+			}
+
+			if out, err := formatOutput(pkgs); err != nil {
+				return err
+			} else {
+				fmt.Print(out)
+				return nil
+			}
+		},
+	}
+)

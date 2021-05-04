@@ -39,15 +39,18 @@ func DefaultClient() *http.Client {
 	return http.DefaultClient
 }
 
-func ListPackages(client *http.Client, cfg RDepotConfig) ([]model.Package, error) {
+func ListPackages(client *http.Client, cfg RDepotConfig, repository string) ([]model.Package, error) {
 
 	req, err := http.NewRequest(
 		"GET",
 		cfg.Host+"/api/manager/packages/list",
 		nil)
-
 	if err != nil {
 		return nil, err
+	}
+
+	if repository != "" {
+		req.URL.Query().Add("repositoryName", repository)
 	}
 
 	req.Header.Set("Accept", "application/json")

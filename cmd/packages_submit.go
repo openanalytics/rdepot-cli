@@ -22,7 +22,7 @@ import (
 )
 
 func init() {
-	packagesSubmitCmd.PersistentFlags().StringVarP(&repository, "repo", "r", "", "repository to upload to")
+	packagesSubmitCmd.Flags().StringVarP(&repository, "repo", "r", "", "repository to upload to")
 	packagesSubmitCmd.PersistentFlags().StringVarP(&filePath, "file", "f", "", "R package archive to upload")
 	packagesSubmitCmd.PersistentFlags().BoolVarP(&replace, "replace", "", true, "replace existing package version")
 	packagesSubmitCmd.PersistentFlags().BoolVarP(&strict, "strict", "", true, "convert warnings into errors")
