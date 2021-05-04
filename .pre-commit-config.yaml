@@ -5,3 +5,5 @@ repos:
         name: cobra docs
         language: system
         entry: go run . doc
+        files: ^cmd/.*\.go$
+
