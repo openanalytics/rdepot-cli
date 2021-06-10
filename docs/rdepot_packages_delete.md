@@ -1,20 +1,21 @@
-## rdepot packages list
+## rdepot packages delete
 
-List one or many packages
+Delete one or many packages
 
 ### Synopsis
 
-List one or many packages
+Delete one or many packages
 
 ```
-rdepot packages list [flags]
+rdepot packages delete [flags]
 ```
 
 ### Options
 
 ```
       --archived      only list packages archived in the repository
-  -h, --help          help for list
+  -n, --dry-run       do not delete anyhing and just show what would be done
+  -h, --help          help for delete
       --name string   filter by name glob pattern
   -r, --repo string   repository to filter with
 ```

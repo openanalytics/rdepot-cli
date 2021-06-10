@@ -9,6 +9,6 @@ repos:
       - id: license
         name: update license headers 
         language: system # go get -u github.com/google/addlicense
-        entry: addlicense -c "Open Analytics" -y 2020 -l apache *.go */*.go
+        entry: addlicense -c "Open Analytics" -y 2020-2021 -l apache *.go */*.go
         files: ^.*\.go$
 

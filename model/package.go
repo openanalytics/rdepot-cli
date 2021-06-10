@@ -14,13 +14,15 @@
 
 package model
 
-//import (
-//"encoding/json"
-//)
+import (
+	"fmt"
+
+	"path/filepath"
+)
 
 type Package struct {
 	Id                 int        `json:"id"`
-	Version            string     `json:"version"`
+	Version            Version    `json:"version"`
 	Submission         Submission `json:"submission"`
 	Name               string     `json:"name"`
 	Description        string     `json:"description"`
@@ -38,13 +40,51 @@ type Package struct {
 	Deleted            bool       `json:"deleted"`
 }
 
-//func (pkgs []Package) FormatJSON() ([]byte, error) {
-//return json.Marshal(pkgs)
-//}
-
 type Submission struct {
 	Id       int    `json:"id"`
 	Changes  string `json:"changes"`
 	Accepted bool   `json:"accepted"`
 	Deleted  bool   `json:"deleted"`
+}
+
+func (pkg Package) Summary() string {
+	return fmt.Sprintf("%s %s", pkg.Name, pkg.Version.CanonicalRep)
+}
+
+// Filter packages matching a name glob pattern
+func FilterByName(packages []Package, name string) ([]Package, error) {
+	filtered := make([]Package, 0)
+
+	for _, pkg := range packages {
+		matched, err := filepath.Match(name, pkg.Name)
+		if err != nil {
+			return nil, err
+		} else if matched {
+			filtered = append(filtered, pkg)
+		}
+	}
+
+	return filtered, nil
+}
+
+// Retain only archived packages
+func FilterArchived(packages []Package) []Package {
+
+	newest := make(map[string]Version)
+
+	for _, pkg := range packages {
+		if newest[pkg.Name].Less(pkg.Version) {
+			newest[pkg.Name] = pkg.Version
+		}
+	}
+
+	filtered := make([]Package, 0, len(newest))
+
+	for _, pkg := range packages {
+		if pkg.Version.Less(newest[pkg.Name]) {
+			filtered = append(filtered, pkg)
+		}
+	}
+
+	return filtered
 }

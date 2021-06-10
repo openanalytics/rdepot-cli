@@ -50,7 +50,7 @@ func TestListPackages(t *testing.T) {
 
 		config := RDepotConfig{Host: server.URL, Token: "validtoken"}
 
-		res, err := ListPackages(server.Client(), config)
+		res, err := ListPackages(server.Client(), config, "")
 
 		if err != nil {
 			t.Errorf("Got error: %s", err)
@@ -59,6 +59,7 @@ func TestListPackages(t *testing.T) {
 		if len(res) != test.nPkgs {
 			t.Errorf("Expected %d packages, got %d", test.nPkgs, len(res))
 		}
+
 	}
 
 }

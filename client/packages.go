@@ -39,6 +39,31 @@ func DefaultClient() *http.Client {
 	return http.DefaultClient
 }
 
+func DeletePackage(client *http.Client, cfg RDepotConfig, id int) error {
+
+	req, err := http.NewRequest(
+		"DELETE",
+		cfg.Host+fmt.Sprintf("/api/manager/packages/%d/delete", id),
+		nil)
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Authorization", "Bearer "+cfg.Token)
+
+	res, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("bad status: %s", res.Status)
+	}
+
+	return nil
+}
+
 func ListPackages(client *http.Client, cfg RDepotConfig, repository string) ([]model.Package, error) {
 
 	req, err := http.NewRequest(
@@ -49,9 +74,11 @@ func ListPackages(client *http.Client, cfg RDepotConfig, repository string) ([]m
 		return nil, err
 	}
 
+	q := req.URL.Query()
 	if repository != "" {
-		req.URL.Query().Add("repositoryName", repository)
+		q.Add("repositoryName", repository)
 	}
+	req.URL.RawQuery = q.Encode()
 
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Authorization", "Bearer "+cfg.Token)

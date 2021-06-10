@@ -24,21 +24,19 @@ import (
 )
 
 func init() {
-	packagesListCmd.Flags().StringVar(&nameFilter, "name", "", "filter by name glob pattern")
-	packagesListCmd.Flags().StringVarP(&repositoryFilter, "repo", "r", "", "repository to filter with")
-	packagesListCmd.Flags().BoolVar(&archivedFilter, "archived", false, "only list packages archived in the repository")
-	packagesCmd.AddCommand(packagesListCmd)
+	packagesDeleteCmd.Flags().StringVar(&nameFilter, "name", "", "filter by name glob pattern")
+	packagesDeleteCmd.Flags().StringVarP(&repositoryFilter, "repo", "r", "", "repository to filter with")
+	packagesDeleteCmd.Flags().BoolVar(&archivedFilter, "archived", false, "only list packages archived in the repository")
+	packagesDeleteCmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "do not delete anyhing and just show what would be done")
+	packagesCmd.AddCommand(packagesDeleteCmd)
 }
 
 var (
-	nameFilter       string
-	repositoryFilter string
-	archivedFilter   bool
-
-	packagesListCmd = &cobra.Command{
-		Use:   "list",
-		Short: "List one or many packages",
-		Long:  `List one or many packages`,
+	dryRun            bool
+	packagesDeleteCmd = &cobra.Command{
+		Use:   "delete",
+		Short: "Delete one or many packages",
+		Long:  `Delete one or many packages`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			if archivedFilter && repositoryFilter == "" {
@@ -60,12 +58,21 @@ var (
 				}
 			}
 
-			if out, err := formatOutput(pkgs); err != nil {
-				return err
+			if dryRun {
+				for _, pkg := range pkgs {
+					fmt.Printf("would be deleted: %s\n", pkg.Summary())
+				}
 			} else {
-				fmt.Print(out)
-				return nil
+				for _, pkg := range pkgs {
+					err := client.DeletePackage(client.DefaultClient(), Config, pkg.Id)
+					if err != nil {
+						return fmt.Errorf("could not delete package (%s): %v", pkg.Summary(), err)
+					} else {
+						fmt.Printf("deleted %s\n", pkg.Summary())
+					}
+				}
 			}
+			return nil
 		},
 	}
 )
