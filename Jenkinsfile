@@ -1,3 +1,4 @@
+@Library('jenkins-ecr-libs') _
 pipeline {
 
     agent {
