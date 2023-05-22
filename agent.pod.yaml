@@ -10,7 +10,7 @@ spec:
     securityContext:
       privileged: true
   - name: curl
-    image: appropriate/curl
+    image: curlimages/curl
     securityContext:
       privileged: true
     tty: yes
