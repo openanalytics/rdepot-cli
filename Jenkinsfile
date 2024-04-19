@@ -43,6 +43,12 @@ pipeline {
                     }
                 }
                 stage('Publish') {
+                    when {
+                        anyOf {
+                            branch "master"
+                            branch pattern: "\\d+\\.\\d+\\.\\d+", comparator: "REGEXP"
+                        }
+                    }
                     steps {
                         container('curl') {
                             withCredentials([usernameColonPassword(credentialsId: 'oa-jenkins', variable: 'USERPASS')]) {
@@ -55,6 +61,12 @@ pipeline {
             }
         }
         stage('Build image'){
+            when {
+                anyOf {
+                    branch "master"
+                    branch pattern: "\\d+\\.\\d+\\.\\d+", comparator: "REGEXP"
+                }
+            }
             steps {
                 ecrPull "${env.REG}", "${env.NS}/${env.IMAGE}", "${env.TAG}", '', 'eu-west-1'
                 sh """
@@ -69,21 +81,21 @@ pipeline {
                   .
                 """
             }
-        }
-    }
+            post {
+                success  {
+                    ecrPush "${env.REG}", "${env.NS}/${env.IMAGE}", "${env.TAG}", '', 'eu-west-1' 
+                    ecrPush "${env.REG}", "${env.NS}/${env.IMAGE}", "${env.shortCommit}", '', 'eu-west-1'
+                    withDockerRegistry([
+                            credentialsId: "openanalytics-dockerhub",
+                            url: ""]) {
 
-    post {
-        success  {
-            ecrPush "${env.REG}", "${env.NS}/${env.IMAGE}", "${env.TAG}", '', 'eu-west-1' 
-            ecrPush "${env.REG}", "${env.NS}/${env.IMAGE}", "${env.shortCommit}", '', 'eu-west-1'
-            withDockerRegistry([
-                    credentialsId: "openanalytics-dockerhub",
-                    url: ""]) {
+                        sh "docker push openanalytics/${env.IMAGE}:${env.TAG}"
+                    }
 
-                sh "docker push openanalytics/${env.IMAGE}:${env.TAG}"
+                }
             }
-
         }
     }
+
 }
 
