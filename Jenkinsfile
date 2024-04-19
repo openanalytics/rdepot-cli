@@ -32,6 +32,9 @@ pipeline {
                 stage('Build') {
                     steps {
                         ecrPull "${env.REG}", "${env.NS}/${env.IMAGE}", "${env.TAG}", '', 'eu-west-1'
+                        withDockerRegistry([
+                          credentialsId: "oa-sa-jenkins-registry",
+                          url: "https://registry.openanalytics.eu"]) {
                         sh """
                         docker build \
                           --cache-from ${env.REG}/${env.NS}/${env.IMAGE}:${env.TAG} \
@@ -40,6 +43,7 @@ pipeline {
                           --platform ${PLATFORM} \
                           .
                         """
+                        }
                     }
                 }
                 stage('Publish') {
@@ -69,6 +73,9 @@ pipeline {
             }
             steps {
                 ecrPull "${env.REG}", "${env.NS}/${env.IMAGE}", "${env.TAG}", '', 'eu-west-1'
+                withDockerRegistry([
+                  credentialsId: "oa-sa-jenkins-registry",
+                  url: "https://registry.openanalytics.eu"]) {
                 sh """
                 docker build \
                   --cache-from ${env.REG}/${env.NS}/${env.IMAGE}:${env.TAG} \
@@ -80,6 +87,7 @@ pipeline {
                   --tag ${env.NS}/${env.IMAGE}:${env.TAG} \
                   .
                 """
+                }
             }
             post {
                 success  {
