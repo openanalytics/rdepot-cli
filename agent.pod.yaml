@@ -10,10 +10,10 @@ spec:
     securityContext:
       privileged: true
   - name: curl
-    image: curlimages/curl
+    image: alpine/curl
     securityContext:
       privileged: true
-    tty: yes
+    tty: true
     command:
     - cat
 
