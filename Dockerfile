@@ -21,7 +21,7 @@ COPY --from=build /out/rdepot /rdepot.exe
 
 FROM bin-${TARGETOS} AS bin
 
-FROM alpine AS image
+FROM registry.openanalytics.eu/library/alpine AS image
 COPY --from=build /out/rdepot /bin/rdepot
 ENTRYPOINT ["/bin/rdepot"]
 CMD ["--help"]
