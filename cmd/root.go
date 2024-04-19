@@ -16,7 +16,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -63,30 +62,6 @@ func init() {
 
 func Execute() error {
 	return rootCmd.Execute()
-}
-
-func FailOn(msg interface{}) {
-	fmt.Println("Error:", msg)
-	os.Exit(1)
-}
-
-func formatMessage(msg client.Message, strict bool) (string, error) {
-	if class, err := msg.Class(); err != nil {
-		return "", err
-	} else {
-		switch class {
-		case "warning":
-			if strict {
-				return "", fmt.Errorf(msg.Content())
-			} else {
-				return fmt.Sprintf("Warning: %s", msg.Content()), nil
-			}
-		case "error":
-			return "", fmt.Errorf(msg.Content())
-		default:
-			return msg.Content(), nil
-		}
-	}
 }
 
 type ByteArray []byte

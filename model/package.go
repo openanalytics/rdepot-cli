@@ -20,31 +20,73 @@ import (
 	"path/filepath"
 )
 
+type Response[C any] struct {
+	Status      string  `json:"status"`
+	Code        int     `json:"code"`
+	Message     string  `json:"message"`
+	MessageCode string  `json:"messageCode"`
+	Data        Data[C] `json:"data"`
+}
+
+type Data[C any] struct {
+	Links   []Link `json:"links"`
+	Content []C    `json:"content"`
+	Page    Page   `json:"page"`
+}
+
+type Page struct {
+	Size          int `json:"size"`
+	TotalElements int `json:"totalElements"`
+	TotalPages    int `json:"totalPages"`
+	Number        int `json:"number"`
+}
+
 type Package struct {
 	Id                 int        `json:"id"`
+	Username           User       `json:"user"`
+	Repository         Repository `json:"repository"`
 	Version            Version    `json:"version"`
-	Submission         Submission `json:"submission"`
 	Name               string     `json:"name"`
+	SubmissionId       int        `json:"submissionId"`
 	Description        string     `json:"description"`
 	Author             string     `json:"author"`
+	Title              string     `json:"title"`
+	Url                string     `json:"url"`
+	Source             string     `json:"source"`
+	Active             bool       `json:"active"`
+	Deleted            bool       `json:"deleted"`
 	Depends            string     `json:"depends"`
 	Imports            string     `json:"imports"`
 	Suggests           string     `json:"suggests"`
 	SystemRequirements string     `json:"systemRequirements"`
 	License            string     `json:"license"`
-	Title              string     `json:"title"`
-	Url                string     `json:"url"`
-	Source             string     `json:"source"`
 	Md5Sum             string     `json:"md5sum"`
-	Active             bool       `json:"active"`
-	Deleted            bool       `json:"deleted"`
+	Links              []Link     `json:"links"`
 }
 
-type Submission struct {
-	Id       int    `json:"id"`
-	Changes  string `json:"changes"`
-	Accepted bool   `json:"accepted"`
-	Deleted  bool   `json:"deleted"`
+type User struct {
+	Id    int    `json:"id"`
+	Name  string `json:"name"`
+	Login string `json:"login"`
+	Email string `json:"email"`
+}
+
+type Repository struct {
+	Id             int    `json:"id"`
+	Name           string `json:"name"`
+	PublicationUri string `json:"publicationUri"`
+}
+
+type Link struct {
+	Rel         string `json:"rel"`
+	Href        string `json:"href"`
+	Hreflang    string `json:"hreflang"`
+	Media       string `json:"media"`
+	Title       string `json:"title"`
+	Type        string `json:"type"`
+	Deprecation string `json:"deprecation"`
+	Profile     string `json:"profile"`
+	Name        string `json:"name"`
 }
 
 func (pkg Package) Summary() string {

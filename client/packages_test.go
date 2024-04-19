@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -28,11 +29,11 @@ func TestListPackages(t *testing.T) {
 		nPkgs int
 	}{
 		{
-			body:  []byte(`[]`),
+			body:  []byte(`{ "status": "SUCCESS", "code": 200, "message": "Your request has been processed successfully.", "messageCode": "success.request.processed", "data": { "links": [ { "rel": "self", "href": "http://localhost:8017/api/v2/manager/r/packages?page=0&size=1" } ], "content": [], "page": { "size": 0, "totalElements": 0, "totalPages": 0, "number": 0 } }}`),
 			nPkgs: 0,
 		},
 		{
-			body:  []byte(`[{"id":4,"version":"0.0.1","submission":{"id":4,"changes":null,"accepted":true,"deleted":false},"name":"foo","description":"foo description","author":"Foo Author","depends":null,"imports":null,"suggests":null,"systemRequirements":null,"license":"GPL-2","title":"foo title","source":"/opt/rdepot/repositories/3/36142023/foo_0.0.1.tar.gz","md5sum":"de696d506f435e040f0b215da4d3c643","active":true,"deleted":false,"packageEvents":null}]`),
+			body:  []byte(`{ "status": "SUCCESS", "code": 200, "message": "Your request has been processed successfully.", "messageCode": "success.request.processed", "data": { "links": [ { "rel": "first", "href": "http://localhost:8017/api/v2/manager/r/packages?page=0&size=1" }, { "rel": "self", "href": "http://localhost:8017/api/v2/manager/r/packages?page=0&size=1" }, { "rel": "next", "href": "http://localhost:8017/api/v2/manager/r/packages?page=1&size=1" }, { "rel": "last", "href": "http://localhost:8017/api/v2/manager/r/packages?page=19&size=1" } ], "content": [ { "id": 8, "user": { "id": 4, "name": "Albert Einstein", "login": "einstein", "email": "einstein@ldap.forumsys.com" }, "repository": { "id": 3, "name": "testrepo2", "publicationUri": "http://localhost/repo/testrepo2" }, "submissionId": 6, "name": "accrued", "version": "1.2", "description": "Package for visualizing data quality of partially accruing time series.", "author": "Julie Eaton and Ian Painter", "title": "Visualization tools for partially accruing data", "url": null, "source": "/opt/rdepot/repositories/3/83118397/accrued_1.2.tar.gz", "active": true, "deleted": false, "depends": "R (>= 3.0), grid", "imports": null, "suggests": null, "systemRequirements": null, "license": "GPL-3", "md5sum": "70d295115295a4718593f6a39d77add9", "links": [ { "rel": "self", "href": "http://localhost:8017/api/v2/manager/r/packages/8" }, { "rel": "packageList", "href": "http://localhost:8017/api/v2/manager/r/packages" } ] } ], "page": { "size": 1, "totalElements": 1, "totalPages": 0, "number": 0 } }}`),
 			nPkgs: 1,
 		},
 	}
@@ -40,9 +41,11 @@ func TestListPackages(t *testing.T) {
 	for _, test := range tests {
 
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			want := "/api/manager/packages/list"
-			if req.URL.String() != want {
-				t.Errorf("Expected %s, got %s", want, req.URL.String())
+			want := "/api/v2/manager/r/packages"
+			// Remove the query parameters from the url
+			expect := strings.Split(req.URL.String(), "?")[0]
+			if expect != want {
+				t.Errorf("Expected %s, got %s", want, expect)
 			}
 			rw.Write(test.body)
 		}))
@@ -76,7 +79,7 @@ func TestSubmitPackage(t *testing.T) {
 		replace bool
 	}{
 		{
-			body:    []byte(`{"success": {"first": "oaColors_0.0.4.tar.gz", "second": "submission created successfully"}}`),
+			body:    []byte(`{"status": "SUCCESS", "code": 201, "message": "Your resource has been created successfully.", "messageCode": "success.resource.created", "data": {}}`),
 			replace: false,
 		},
 	}
@@ -84,10 +87,10 @@ func TestSubmitPackage(t *testing.T) {
 	for _, test := range tests {
 
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			if actual, expect := req.URL.String(), "/api/manager/packages/submit"; actual != expect {
+			if actual, expect := req.URL.String(), "/api/v2/manager/r/submissions"; actual != expect {
 				t.Errorf("Expected %s, got %s", expect, actual)
 			}
-			expectEqual(t, "/api/manager/packages/submit", req.URL.String())
+			expectEqual(t, "/api/v2/manager/r/submissions", req.URL.String())
 			expectEqual(t, strconv.FormatBool(test.replace), req.FormValue("replace"))
 			expectEqual(t, "test", req.FormValue("repository"))
 			if _, fh, err := req.FormFile("file"); err != nil {
@@ -102,18 +105,10 @@ func TestSubmitPackage(t *testing.T) {
 
 		config := RDepotConfig{Host: server.URL, Token: "validtoken"}
 
-		res, err := SubmitPackage(server.Client(), config, "testdata/oaColors_0.0.4.tar.gz", "test", test.replace, true)
+		_, err := SubmitPackage(server.Client(), config, "testdata/oaColors_0.0.4.tar.gz", "test", test.replace, true)
 
 		if err != nil {
 			t.Errorf("Error: %s", err)
 		}
-
-		if mc, err := res.Class(); err != nil {
-			t.Errorf("Error: %s", err)
-			if mc != "success" {
-				t.Errorf("Unexpected message class: %s", mc)
-			}
-		}
-
 	}
 }

@@ -1,4 +1,4 @@
-FROM --platform=${BUILDPLATFORM} registry.openanalytics.eu/library/golang:1.14.3-alpine AS build
+FROM --platform=${BUILDPLATFORM} registry.openanalytics.eu/library/golang:1.20.14-alpine AS build
 LABEL maintainer="daan.seynaeve@openanalytics.eu"
 WORKDIR /src
 ENV CGO_ENABLED=0

@@ -24,10 +24,11 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
-	"openanalytics.eu/rdepot/cli/model"
 	"os"
 	"strconv"
 	"strings"
+
+	"openanalytics.eu/rdepot/cli/model"
 )
 
 type RDepotConfig struct {
@@ -39,23 +40,24 @@ func DefaultClient() *http.Client {
 	return http.DefaultClient
 }
 
-func DeletePackage(client *http.Client, cfg RDepotConfig, id int) error {
+func SoftDeletePackage(client *http.Client, cfg RDepotConfig, id int) error {
 
-	req, err := http.NewRequest(
-		"DELETE",
-		cfg.Host+fmt.Sprintf("/api/manager/packages/%d/delete", id),
-		nil)
+	patchJson := []byte(`[{"op": "replace", "path": "/deleted", "value": true}]`)
+
+	req, err := http.NewRequest("PATCH", cfg.Host+fmt.Sprintf("/api/v2/manager/r/packages/%d", id), bytes.NewBuffer(patchJson))
 	if err != nil {
 		return err
 	}
 
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json-patch+json")
 	req.Header.Set("Authorization", "Bearer "+cfg.Token)
-
 	res, err := client.Do(req)
 	if err != nil {
 		return err
 	}
+
+	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
 		return fmt.Errorf("bad status: %s", res.Status)
@@ -64,20 +66,52 @@ func DeletePackage(client *http.Client, cfg RDepotConfig, id int) error {
 	return nil
 }
 
-func ListPackages(client *http.Client, cfg RDepotConfig, repository string) ([]model.Package, error) {
+func DeletePackage(client *http.Client, cfg RDepotConfig, id int) error {
+	err := SoftDeletePackage(client, cfg, id)
+	if err != nil {
+		return err
+	}
 
 	req, err := http.NewRequest(
-		"GET",
-		cfg.Host+"/api/manager/packages/list",
+		"DELETE",
+		cfg.Host+fmt.Sprintf("/api/v2/manager/r/packages/%d", id),
 		nil)
 	if err != nil {
-		return nil, err
+		return err
+	}
+
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Authorization", "Bearer "+cfg.Token)
+
+	res, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("bad status: %s", res.Status)
+	}
+
+	return nil
+}
+
+func ListPackagesPage(client *http.Client, cfg RDepotConfig, repository string, page int) ([]model.Package, model.Page, error) {
+	var pageData model.Page
+	req, err := http.NewRequest(
+		"GET",
+		cfg.Host+"/api/v2/manager/r/packages",
+		nil)
+	if err != nil {
+		return nil, pageData, err
 	}
 
 	q := req.URL.Query()
 	if repository != "" {
 		q.Add("repositoryName", repository)
 	}
+	q.Add("page", strconv.Itoa(page))
+	q.Add("size", "100")
 	req.URL.RawQuery = q.Encode()
 
 	req.Header.Set("Accept", "application/json")
@@ -86,87 +120,80 @@ func ListPackages(client *http.Client, cfg RDepotConfig, repository string) ([]m
 	res, err := client.Do(req)
 
 	if err != nil {
-		return nil, err
+		return nil, pageData, err
 	}
+	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("bad status: %s", res.Status)
+		return nil, pageData, fmt.Errorf("bad status: %s", res.Status)
 	}
 
 	defer res.Body.Close()
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return nil, err
+		return nil, pageData, err
 	}
 
-	var pkgs []model.Package
-	if err := json.Unmarshal(body, &pkgs); err != nil {
-		return nil, fmt.Errorf("could not unpack response: %s", err)
+	var response model.Response[model.Package]
+	fmt.Print(res)
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, pageData, fmt.Errorf("could not unpack response: %s", err)
 	}
-	return pkgs, nil
+	return response.Data.Content, response.Data.Page, nil
 
 }
 
-type Pair struct {
-	First  string `json:"first"`
-	Second string `json:"second"`
+func ListPackages(client *http.Client, cfg RDepotConfig, repository string) ([]model.Package, error) {
+	pkgs, pageData, err := ListPackagesPage(client, cfg, repository, 0)
+	if err != nil {
+		return nil, err
+	}
+	for page := 1; page <= pageData.TotalPages; page++ {
+		new_pkgs, _, err := ListPackagesPage(client, cfg, repository, page)
+		if err != nil {
+			return nil, err
+		}
+		pkgs = append(pkgs, new_pkgs...)
+	}
+
+	return pkgs, nil
 }
 
 type SubmissionResult struct {
-	Success Pair `json:"success"`
-	Warning Pair `json:"warning"`
-	Error   Pair `json:"error"`
+	Status      string `json:"status"`
+	Code        int    `json:"code"`
+	Message     string `json:"message"`
+	MessageCode string `json:"messageCode"`
 }
 
-type Message interface {
-	Class() (string, error)
-	Content() string
-}
-
-func (s SubmissionResult) Class() (string, error) {
-	switch {
-	case s.Success.First != "":
-		return "success", nil
-	case s.Warning.First != "":
-		return "warning", nil
-	case s.Error.First != "":
-		return "error", nil
-	default:
-		return "", fmt.Errorf("Unrecognized response type")
-	}
-}
-
-func (s SubmissionResult) Content() string {
-	return s.Success.Second + s.Warning.Second + s.Error.Second
-}
-
-func SubmitPackage(client *http.Client, cfg RDepotConfig, archive string, repository string, replace bool, generateManual bool) (Message, error) {
+func SubmitPackage(client *http.Client, cfg RDepotConfig, archive string, repository string, replace bool, generateManual bool) (string, error) {
 	var subres SubmissionResult
+	var msg string
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
 	fr, err := os.Open(archive)
 	if err != nil {
-		return subres, err
+		return msg, err
 	}
 
 	if fw, err := createFormGZip(w, "file", archive); err != nil {
-		return subres, err
+		return msg, err
 	} else {
 		io.Copy(fw, fr)
 	}
 
 	if err := w.WriteField("repository", repository); err != nil {
-		return subres, err
+		return msg, err
 	}
 
 	if err := w.WriteField("replace", strconv.FormatBool(replace)); err != nil {
-		return subres, err
+		return msg, err
 	}
 
 	if !generateManual { // TODO: remove in future versions
 		if err := w.WriteField("generateManual", strconv.FormatBool(generateManual)); err != nil {
-			return subres, err
+			return msg, err
 		}
 	}
 
@@ -174,10 +201,10 @@ func SubmitPackage(client *http.Client, cfg RDepotConfig, archive string, reposi
 
 	req, err := http.NewRequest(
 		"POST",
-		cfg.Host+"/api/manager/packages/submit",
+		cfg.Host+"/api/v2/manager/r/submissions",
 		&b)
 	if err != nil {
-		return subres, err
+		return msg, err
 	}
 
 	req.Header.Set("Content-Type", w.FormDataContentType())
@@ -186,24 +213,24 @@ func SubmitPackage(client *http.Client, cfg RDepotConfig, archive string, reposi
 
 	res, err := client.Do(req)
 	if err != nil {
-		return subres, err
+		return msg, err
 	}
+	defer res.Body.Close()
 
-	if res.StatusCode != http.StatusOK {
-		return subres, fmt.Errorf("bad status: %s", res.Status)
+	if res.StatusCode != http.StatusCreated && res.StatusCode != http.StatusOK {
+		return msg, fmt.Errorf("bad status: %s", res.Status)
 	}
 
 	defer res.Body.Close()
 	resBody, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return subres, err
+		return msg, err
 	}
-
 	if err := json.Unmarshal(resBody, &subres); err != nil {
-		return subres, fmt.Errorf("could not unpack response: %s", err)
+		return msg, fmt.Errorf("could not unpack response: %s", err)
 	}
-
-	return subres, nil
+	msg = subres.Message
+	return msg, nil
 
 }
 
