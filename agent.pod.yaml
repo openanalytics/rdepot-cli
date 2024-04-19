@@ -10,7 +10,7 @@ spec:
     securityContext:
       privileged: true
   - name: curl
-    image: alpine/curl
+    image: alpine/curl:latest
     securityContext:
       privileged: true
     tty: true
