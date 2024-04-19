@@ -4,13 +4,15 @@ metadata:
   labels:
     docker: rdepot-cli
 spec:
+  imagePullSecrets:
+    - name: registry-robot
   containers:
   - name: dind
     image: 196229073436.dkr.ecr.eu-west-1.amazonaws.com/oa-infrastructure/dind
     securityContext:
       privileged: true
   - name: curl
-    image: alpine/curl:latest
+    image: registry.openanalytics.eu/library/alpine/curl:latest
     imagePullPolicy: Always
     securityContext:
       privileged: true
