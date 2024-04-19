@@ -11,6 +11,7 @@ spec:
       privileged: true
   - name: curl
     image: alpine/curl:latest
+    imagePullPolicy: Always
     securityContext:
       privileged: true
     tty: true
