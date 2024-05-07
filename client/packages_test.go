@@ -41,7 +41,7 @@ func TestListPackages(t *testing.T) {
 	for _, test := range tests {
 
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			want := "/api/v2/manager/r/packages"
+			want := "/api/v2/manager/packages"
 			// Remove the query parameters from the url
 			expect := strings.Split(req.URL.String(), "?")[0]
 			if expect != want {
@@ -51,9 +51,9 @@ func TestListPackages(t *testing.T) {
 		}))
 		defer server.Close()
 
-		config := RDepotConfig{Host: server.URL, Token: "validtoken"}
+		config := RDepotConfig{Host: server.URL, Token: "validtoken", Technology: "all"}
 
-		res, err := ListPackages(server.Client(), config, "")
+		res, err := ListPackages(server.Client(), config, "", false, "")
 
 		if err != nil {
 			t.Errorf("Got error: %s", err)
@@ -103,7 +103,7 @@ func TestSubmitPackage(t *testing.T) {
 		}))
 		defer server.Close()
 
-		config := RDepotConfig{Host: server.URL, Token: "validtoken"}
+		config := RDepotConfig{Host: server.URL, Token: "validtoken", Technology: "r"}
 
 		_, err := SubmitPackage(server.Client(), config, "testdata/oaColors_0.0.4.tar.gz", "test", test.replace, true)
 

@@ -16,30 +16,114 @@ package model
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 )
 
+type VersionSegment struct {
+	Digit              int
+	ReleaseType        string
+	ReleaseTypeVersion int
+}
+
 type Version struct {
-	Digits       []int
+	Epoch        int
+	Segments     []VersionSegment
 	CanonicalRep string
 }
 
 func CanonicalVersion(rep string) (*Version, error) {
+	epoch := 0
+	if strings.Contains(rep, "!") { // version contains epoch
+		epochVersionSplit := strings.Split(rep, "!")
+		var err error
+		epoch, err = strconv.Atoi(epochVersionSplit[0])
+		if err != nil {
+			return nil, fmt.Errorf("invalid epoch in version %s", rep)
+		}
+		rep = epochVersionSplit[1]
+	}
 	dotted := strings.ReplaceAll(rep, "-", ".")
 	parts := strings.Split(dotted, ".")
-	var digits = []int{}
-	for _, part := range parts {
+	var segments = []VersionSegment{}
+	for i, part := range parts {
 		digit, err := strconv.Atoi(part)
+		if err == nil {
+			segments = append(segments, VersionSegment{digit, "", 0})
+		} else if i > 0 { // try parsing segment as a python segment
+			parsedSegment, err := ParsePythonVersionSegment(part)
+			if err != nil {
+				return nil, err
+			}
+			segments = append(segments, *parsedSegment)
+		} else {
+			return nil, err
+		}
+	}
+	return &Version{
+		Epoch:        epoch,
+		Segments:     segments,
+		CanonicalRep: rep,
+	}, nil
+}
+
+func ParsePythonVersionSegment(part string) (*VersionSegment, error) {
+	preReleaseCycles := []string{"a", "b", "rc", "c"}
+	for _, cycle := range preReleaseCycles {
+		if strings.Contains(part, cycle) {
+			return PreReleaseToVersionSegment(part)
+		}
+	}
+	if strings.Contains(part, "post") || strings.Contains(part, "dev") {
+		return PostOrDevReleaseToVersionSegment(part)
+	}
+	return nil, fmt.Errorf("invalid python version segment %s", part)
+}
+
+func PreReleaseToVersionSegment(preReleasePart string) (*VersionSegment, error) {
+	var releaseType string
+	if strings.Contains(preReleasePart, "a") {
+		releaseType = "a"
+	} else if strings.Contains(preReleasePart, "b") {
+		releaseType = "b"
+	} else if strings.Contains(preReleasePart, "rc") {
+		releaseType = "rc"
+	} else if strings.Contains(preReleasePart, "c") {
+		preReleasePart = strings.Replace(preReleasePart, "c", "rc", 1)
+		releaseType = "rc"
+	} else {
+		return nil, fmt.Errorf("invalid pre-release version %s", preReleasePart)
+	}
+	preReleaseParts := strings.Split(preReleasePart, releaseType)
+
+	digit, err := strconv.Atoi(preReleaseParts[0])
+	if err != nil {
+		return nil, fmt.Errorf(preReleasePart)
+	}
+	releaseTypeVersion := 0
+	if len(preReleaseParts) == 3 {
+		releaseTypeVersion, err = strconv.Atoi(preReleaseParts[2])
 		if err != nil {
 			return nil, err
 		}
-		digits = append(digits, digit)
 	}
-	return &Version{
-		Digits:       digits,
-		CanonicalRep: rep,
-	}, nil
+	return &VersionSegment{digit, releaseType, releaseTypeVersion}, nil
+}
+
+func PostOrDevReleaseToVersionSegment(part string) (*VersionSegment, error) {
+	var releaseType string
+	if strings.Contains(part, "post") {
+		releaseType = "post"
+	} else if strings.Contains(part, "dev") {
+		releaseType = "dev"
+	}
+	preReleaseParts := strings.Split(part, releaseType)
+	digit, err := strconv.Atoi(preReleaseParts[1])
+	if err != nil {
+		return nil, err
+	}
+	return &VersionSegment{digit, releaseType, 0}, nil
 }
 
 func (u *Version) MarshalJSON() ([]byte, error) {
@@ -56,8 +140,23 @@ func (u *Version) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	u.CanonicalRep = v.CanonicalRep
-	u.Digits = v.Digits
+	u.Segments = v.Segments
+	u.Epoch = v.Epoch
 	return nil
+}
+
+func (x VersionSegment) Equals(y VersionSegment) bool {
+	return !x.Less(y) && !y.Less(x)
+}
+
+func (x VersionSegment) Less(y VersionSegment) bool {
+	if x.Digit == y.Digit && x.ReleaseType == y.ReleaseType {
+		return x.ReleaseTypeVersion < y.ReleaseTypeVersion
+	} else if x.Digit == y.Digit {
+		return x.ReleaseType < y.ReleaseType
+	} else {
+		return x.Digit < y.Digit
+	}
 }
 
 func (x Version) Equals(y Version) bool {
@@ -65,13 +164,20 @@ func (x Version) Equals(y Version) bool {
 }
 
 func (x Version) Less(y Version) bool {
-	for i, d := range x.Digits {
-		if i+1 > len(y.Digits) || d > y.Digits[i] {
+	if x.Epoch < y.Epoch {
+		return true
+	}
+	for i, d := range x.Segments {
+		if i+1 > len(y.Segments) || y.Segments[i].Less(d) {
 			return false
 		}
-		if d < y.Digits[i] {
+		if d.Less(y.Segments[i]) {
 			return true
 		}
 	}
-	return len(x.Digits) < len(y.Digits)
+	return len(x.Segments) < len(y.Segments)
+}
+
+type PythonVersion struct {
+	CanonicalRep string
 }

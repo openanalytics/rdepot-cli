@@ -15,6 +15,7 @@
 package model
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"path/filepath"
@@ -26,6 +27,13 @@ type Response[C any] struct {
 	Message     string  `json:"message"`
 	MessageCode string  `json:"messageCode"`
 	Data        Data[C] `json:"data"`
+}
+
+func (r *Response[C]) Unmarshal(data []byte) error {
+	if err := json.Unmarshal(data, r); err != nil {
+		return fmt.Errorf("could not unpack response: %s", err)
+	}
+	return nil
 }
 
 type Data[C any] struct {
@@ -42,26 +50,51 @@ type Page struct {
 }
 
 type Package struct {
-	Id                 int        `json:"id"`
-	Username           User       `json:"user"`
-	Repository         Repository `json:"repository"`
-	Version            Version    `json:"version"`
-	Name               string     `json:"name"`
-	SubmissionId       int        `json:"submissionId"`
-	Description        string     `json:"description"`
-	Author             string     `json:"author"`
-	Title              string     `json:"title"`
-	Url                string     `json:"url"`
-	Source             string     `json:"source"`
-	Active             bool       `json:"active"`
-	Deleted            bool       `json:"deleted"`
-	Depends            string     `json:"depends"`
-	Imports            string     `json:"imports"`
-	Suggests           string     `json:"suggests"`
-	SystemRequirements string     `json:"systemRequirements"`
-	License            string     `json:"license"`
-	Md5Sum             string     `json:"md5sum"`
-	Links              []Link     `json:"links"`
+	Id          int        `json:"id"`
+	User        User       `json:"user"`
+	Repository  Repository `json:"repository"`
+	Submission  Submission `json:"submission"`
+	Name        string     `json:"name"`
+	Version     Version    `json:"version"`
+	Source      string     `json:"source"`
+	Active      bool       `json:"active"`
+	Deleted     bool       `json:"deleted"`
+	Technology  string     `json:"technology"`
+	Description string     `json:"description"`
+	Author      string     `json:"author"`
+	Title       string     `json:"title"`
+	Url         string     `json:"url"`
+	Links       []Link     `json:"links"`
+}
+
+type RPackage struct {
+	Package
+	Depends            string `json:"depends"`
+	Imports            string `json:"imports"`
+	Suggests           string `json:"suggests"`
+	SystemRequirements string `json:"systemRequirements"`
+	License            string `json:"license"`
+	Md5sum             string `json:"md5sum"`
+}
+
+type PythonPackage struct {
+	Package
+	AuthorEmail            string `json:"authorEmail"`
+	Classifiers            string `json:"classifiers"`
+	DescriptionContentType string `json:"descriptionContentType"`
+	HomePage               string `json:"homePage"`
+	Keywords               string `json:"keywords"`
+	License                string `json:"license"`
+	Maintainer             string `json:"maintainer"`
+	MaintainerEmail        string `json:"maintainerEmail"`
+	Platform               string `json:"platform"`
+	ProjectUrl             string `json:"projectUrl"`
+	ProvidesExtra          string `json:"providesExtra"`
+	RequiresDist           string `json:"requiresDist"`
+	RequiresExternal       string `json:"requiresExternal"`
+	RequiresPython         string `json:"requiresPython"`
+	SummaryField           string `json:"summary"`
+	Hash                   string `json:"hash"`
 }
 
 type User struct {
@@ -75,6 +108,13 @@ type Repository struct {
 	Id             int    `json:"id"`
 	Name           string `json:"name"`
 	PublicationUri string `json:"publicationUri"`
+	Published      bool   `json:"published"`
+	Technology     string `json:"technology"`
+}
+
+type Submission struct {
+	Id    int    `json:"id"`
+	State string `json:"state"`
 }
 
 type Link struct {
@@ -89,16 +129,35 @@ type Link struct {
 	Name        string `json:"name"`
 }
 
+type GenericPackage interface {
+	GetName() string
+	GetVersion() Version
+	Summary() string
+	GetId() int
+}
+
+func (p Package) GetName() string {
+	return p.Name
+}
+
+func (p Package) GetVersion() Version {
+	return p.Version
+}
+
+func (p Package) GetId() int {
+	return p.Id
+}
+
 func (pkg Package) Summary() string {
 	return fmt.Sprintf("%s %s", pkg.Name, pkg.Version.CanonicalRep)
 }
 
 // Filter packages matching a name glob pattern
-func FilterByName(packages []Package, name string) ([]Package, error) {
-	filtered := make([]Package, 0)
+func FilterByName[G GenericPackage](packages []G, name string) ([]G, error) {
+	filtered := make([]G, 0)
 
 	for _, pkg := range packages {
-		matched, err := filepath.Match(name, pkg.Name)
+		matched, err := filepath.Match(name, pkg.GetName())
 		if err != nil {
 			return nil, err
 		} else if matched {
@@ -110,20 +169,20 @@ func FilterByName(packages []Package, name string) ([]Package, error) {
 }
 
 // Retain only archived packages
-func FilterArchived(packages []Package) []Package {
+func FilterArchived[G GenericPackage](packages []G) []G {
 
 	newest := make(map[string]Version)
 
 	for _, pkg := range packages {
-		if newest[pkg.Name].Less(pkg.Version) {
-			newest[pkg.Name] = pkg.Version
+		if newest[pkg.GetName()].Less(pkg.GetVersion()) {
+			newest[pkg.GetName()] = pkg.GetVersion()
 		}
 	}
 
-	filtered := make([]Package, 0, len(newest))
+	filtered := make([]G, 0, len(newest))
 
 	for _, pkg := range packages {
-		if pkg.Version.Less(newest[pkg.Name]) {
+		if pkg.GetVersion().Less(newest[pkg.GetName()]) {
 			filtered = append(filtered, pkg)
 		}
 	}

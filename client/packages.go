@@ -16,11 +16,10 @@ package client
 
 import (
 	"bytes"
-	// "encoding/base64"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
@@ -32,26 +31,45 @@ import (
 )
 
 type RDepotConfig struct {
-	Host  string
-	Token string
+	Host       string
+	Token      string
+	Username   string
+	Technology string
 }
 
 func DefaultClient() *http.Client {
 	return http.DefaultClient
 }
 
+func basicAuth(username string, token string) string {
+	var auth string
+	if username == "" {
+		auth = token
+	} else {
+		auth = username + ":" + token
+	}
+	return base64.StdEncoding.EncodeToString([]byte(auth))
+}
+
 func SoftDeletePackage(client *http.Client, cfg RDepotConfig, id int) error {
 
 	patchJson := []byte(`[{"op": "replace", "path": "/deleted", "value": true}]`)
+	if cfg.Technology != "python" && cfg.Technology != "r" {
+		return fmt.Errorf("invalid technology provided for deleting only Python and R are supported")
+	}
+	path, err := technologyToPath(cfg.Technology)
+	if err != nil {
+		return err
+	}
 
-	req, err := http.NewRequest("PATCH", cfg.Host+fmt.Sprintf("/api/v2/manager/r/packages/%d", id), bytes.NewBuffer(patchJson))
+	req, err := http.NewRequest("PATCH", cfg.Host+fmt.Sprintf("/api/v2/manager/"+path+"packages/%d", id), bytes.NewBuffer(patchJson))
 	if err != nil {
 		return err
 	}
 
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json-patch+json")
-	req.Header.Set("Authorization", "Bearer "+cfg.Token)
+	req.Header.Set("Authorization", "Basic "+basicAuth(cfg.Username, cfg.Token))
 	res, err := client.Do(req)
 	if err != nil {
 		return err
@@ -66,22 +84,32 @@ func SoftDeletePackage(client *http.Client, cfg RDepotConfig, id int) error {
 	return nil
 }
 
-func DeletePackage(client *http.Client, cfg RDepotConfig, id int) error {
-	err := SoftDeletePackage(client, cfg, id)
+func DeletePackage(client *http.Client, cfg RDepotConfig, pkg model.Package) error {
+	if !pkg.Deleted {
+		err := SoftDeletePackage(client, cfg, pkg.Id)
+		if err != nil {
+			return err
+		}
+	}
+
+	if cfg.Technology != "python" && cfg.Technology != "r" {
+		return fmt.Errorf("invalid technology provided for deleting only Python and R are supported")
+	}
+	path, err := technologyToPath(strings.ToLower(pkg.Technology))
 	if err != nil {
 		return err
 	}
 
 	req, err := http.NewRequest(
 		"DELETE",
-		cfg.Host+fmt.Sprintf("/api/v2/manager/r/packages/%d", id),
+		cfg.Host+fmt.Sprintf("/api/v2/manager/"+path+"packages/%d", pkg.Id),
 		nil)
 	if err != nil {
 		return err
 	}
 
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Authorization", "Bearer "+cfg.Token)
+	req.Header.Set("Authorization", "Basic "+basicAuth(cfg.Username, cfg.Token))
 
 	res, err := client.Do(req)
 	if err != nil {
@@ -96,66 +124,100 @@ func DeletePackage(client *http.Client, cfg RDepotConfig, id int) error {
 	return nil
 }
 
-func ListPackagesPage(client *http.Client, cfg RDepotConfig, repository string, page int) ([]model.Package, model.Page, error) {
-	var pageData model.Page
+func ListPackagesPage(client *http.Client, cfg RDepotConfig, repository string, page int) ([]byte, error) {
+	path, err := technologyToPath(cfg.Technology)
+	if err != nil {
+		return nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		cfg.Host+"/api/v2/manager/r/packages",
+		cfg.Host+"/api/v2/manager/"+path+"packages",
 		nil)
 	if err != nil {
-		return nil, pageData, err
+		return nil, err
 	}
 
 	q := req.URL.Query()
 	if repository != "" {
-		q.Add("repositoryName", repository)
+		q.Add("repository", repository)
 	}
 	q.Add("page", strconv.Itoa(page))
 	q.Add("size", "100")
 	req.URL.RawQuery = q.Encode()
 
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Authorization", "Bearer "+cfg.Token)
+	req.Header.Set("Authorization", "Basic "+basicAuth(cfg.Username, cfg.Token))
 
 	res, err := client.Do(req)
 
 	if err != nil {
-		return nil, pageData, err
+		return nil, err
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, pageData, fmt.Errorf("bad status: %s", res.Status)
+		return nil, fmt.Errorf("bad status: %s", res.Status)
 	}
 
-	defer res.Body.Close()
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, pageData, err
-	}
-
-	var response model.Response[model.Package]
-	fmt.Print(res)
-	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, pageData, fmt.Errorf("could not unpack response: %s", err)
-	}
-	return response.Data.Content, response.Data.Page, nil
-
-}
-
-func ListPackages(client *http.Client, cfg RDepotConfig, repository string) ([]model.Package, error) {
-	pkgs, pageData, err := ListPackagesPage(client, cfg, repository, 0)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}
-	for page := 1; page <= pageData.TotalPages; page++ {
-		new_pkgs, _, err := ListPackagesPage(client, cfg, repository, page)
+	return body, nil
+}
+
+func technologyToPath(s string) (string, error) {
+	switch s {
+	case "r":
+		return "r/", nil
+	case "python":
+		return "python/", nil
+	case "all":
+		return "", nil
+	default:
+		return "", fmt.Errorf("undefined technology %s", s)
+	}
+}
+
+func ListPackages(client *http.Client, cfg RDepotConfig, repository string, archivedFilter bool, nameFilter string) ([]model.Package, error) {
+	return ListGenericPackages[model.Package](client, cfg, repository, archivedFilter, nameFilter)
+}
+
+func ListGenericPackages[G model.GenericPackage](client *http.Client, cfg RDepotConfig, repository string, archivedFilter bool, nameFilter string) ([]G, error) {
+	body, err := ListPackagesPage(client, cfg, repository, 0)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var response model.Response[G]
+	err = response.Unmarshal(body)
+	if err != nil {
+		return nil, err
+	}
+
+	var pkgs = response.Data.Content
+	for page := 1; page <= response.Data.Page.TotalPages; page++ {
+		new_body, err := ListPackagesPage(client, cfg, repository, page)
 		if err != nil {
 			return nil, err
 		}
-		pkgs = append(pkgs, new_pkgs...)
+		err = response.Unmarshal(new_body)
+		if err != nil {
+			return nil, err
+		}
+		pkgs = append(pkgs, response.Data.Content...)
 	}
 
+	if archivedFilter {
+		pkgs = model.FilterArchived(pkgs)
+	}
+	if nameFilter != "" {
+		if pkgs, err = model.FilterByName(pkgs, nameFilter); err != nil {
+			return nil, err
+		}
+	}
 	return pkgs, nil
 }
 
@@ -170,6 +232,15 @@ func SubmitPackage(client *http.Client, cfg RDepotConfig, archive string, reposi
 	var subres SubmissionResult
 	var msg string
 	var b bytes.Buffer
+
+	if cfg.Technology != "python" && cfg.Technology != "r" {
+		return msg, fmt.Errorf("invalid technology provided for deleting only Python and R are supported")
+	}
+	path, err := technologyToPath(cfg.Technology)
+	if err != nil {
+		return msg, err
+	}
+
 	w := multipart.NewWriter(&b)
 
 	fr, err := os.Open(archive)
@@ -201,7 +272,7 @@ func SubmitPackage(client *http.Client, cfg RDepotConfig, archive string, reposi
 
 	req, err := http.NewRequest(
 		"POST",
-		cfg.Host+"/api/v2/manager/r/submissions",
+		cfg.Host+"/api/v2/manager/"+path+"submissions",
 		&b)
 	if err != nil {
 		return msg, err
@@ -209,7 +280,7 @@ func SubmitPackage(client *http.Client, cfg RDepotConfig, archive string, reposi
 
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Authorization", "Bearer "+cfg.Token)
+	req.Header.Set("Authorization", "Basic "+basicAuth(cfg.Username, cfg.Token))
 
 	res, err := client.Do(req)
 	if err != nil {
@@ -222,7 +293,7 @@ func SubmitPackage(client *http.Client, cfg RDepotConfig, archive string, reposi
 	}
 
 	defer res.Body.Close()
-	resBody, err := ioutil.ReadAll(res.Body)
+	resBody, err := io.ReadAll(res.Body)
 	if err != nil {
 		return msg, err
 	}
@@ -240,8 +311,10 @@ func escapeQuotes(s string) string {
 	return quoteEscaper.Replace(s)
 }
 
-func createFormGZip(w *multipart.Writer, fieldname, filename string) (io.Writer, error) {
+func createFormGZip(w *multipart.Writer, fieldname, path string) (io.Writer, error) {
 	h := make(textproto.MIMEHeader)
+	splitPath := strings.Split(path, "/")
+	filename := splitPath[len(splitPath)-1]
 	h.Set("Content-Disposition",
 		fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
 			escapeQuotes(fieldname), escapeQuotes(filename)))

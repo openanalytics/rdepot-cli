@@ -34,8 +34,10 @@ var (
   Open Analytics 2020`,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			Config = client.RDepotConfig{
-				Host:  viper.GetString("host"),
-				Token: viper.GetString("token"),
+				Host:       viper.GetString("host"),
+				Token:      viper.GetString("token"),
+				Username:   viper.GetString("username"),
+				Technology: viper.GetString("technology"),
 			}
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -43,21 +45,29 @@ var (
 		},
 		SilenceUsage: true,
 	}
-	Host   string
-	Token  string
-	output = "json"
+	Host       string
+	Token      string
+	Username   string
+	Technology TechnologyEnum = TechnologyEnum("r")
+	output                    = "json"
 
 	Config client.RDepotConfig
 )
 
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&Host, "host", "", "http://localhost", "RDepot host")
-	rootCmd.PersistentFlags().StringVarP(&Token, "token", "", "", "API token")
+	rootCmd.PersistentFlags().StringVarP(&Token, "token", "", "", "API token expects 'username:token' when the username flag is not used and 'token' otherwise")
+	rootCmd.PersistentFlags().StringVarP(&Username, "username", "", "", "Username to be used as the first part of the token")
+	rootCmd.PersistentFlags().VarP(&Technology, "technology", "", "Technology that will be used. Values can be 'r', 'python' or 'all'.")
 	viper.BindPFlag("token", rootCmd.PersistentFlags().Lookup("token"))
 	viper.BindPFlag("host", rootCmd.PersistentFlags().Lookup("host"))
+	viper.BindPFlag("username", rootCmd.PersistentFlags().Lookup("username"))
+	viper.BindPFlag("technology", rootCmd.PersistentFlags().Lookup("technology"))
 	viper.SetEnvPrefix("RDEPOT")
 	viper.BindEnv("token")
 	viper.BindEnv("host")
+	viper.BindEnv("username")
+	viper.BindEnv("technology")
 }
 
 func Execute() error {

@@ -83,6 +83,9 @@ func TestLess(t *testing.T) {
 		{x: pkgv("1-1"), y: pkgv("1.1"), less: false},
 		{x: pkgv("1"), y: pkgv("1.0"), less: true},
 		{x: pkgv("1.0"), y: pkgv("1"), less: false},
+		{x: pkgv("1.0a1"), y: pkgv("1.0b10"), less: true},
+		{x: pkgv("1.0rc1"), y: pkgv("1.0b10"), less: false},
+		{x: pkgv("1.0c1"), y: pkgv("1.0a10"), less: false},
 	}
 
 	for _, test := range tests {

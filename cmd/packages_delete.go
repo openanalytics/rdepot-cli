@@ -20,7 +20,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"openanalytics.eu/rdepot/cli/client"
-	"openanalytics.eu/rdepot/cli/model"
 )
 
 func init() {
@@ -44,18 +43,9 @@ var (
 					"archived filter can only be used when filtering by repository")
 			}
 
-			pkgs, err := client.ListPackages(client.DefaultClient(), Config, repositoryFilter)
+			pkgs, err := client.ListPackages(client.DefaultClient(), Config, repositoryFilter, archivedFilter, nameFilter)
 			if err != nil {
 				return err
-			}
-
-			if archivedFilter {
-				pkgs = model.FilterArchived(pkgs)
-			}
-			if nameFilter != "" {
-				if pkgs, err = model.FilterByName(pkgs, nameFilter); err != nil {
-					return err
-				}
 			}
 
 			if dryRun {
@@ -64,7 +54,7 @@ var (
 				}
 			} else {
 				for _, pkg := range pkgs {
-					err := client.DeletePackage(client.DefaultClient(), Config, pkg.Id)
+					err := client.DeletePackage(client.DefaultClient(), Config, pkg)
 					if err != nil {
 						return fmt.Errorf("could not delete package (%s): %v", pkg.Summary(), err)
 					} else {

@@ -26,7 +26,7 @@ import (
 func init() {
 	packagesListCmd.Flags().StringVar(&nameFilter, "name", "", "filter by name glob pattern")
 	packagesListCmd.Flags().StringVarP(&repositoryFilter, "repo", "r", "", "repository to filter with")
-	packagesListCmd.Flags().BoolVar(&archivedFilter, "archived", false, "only list packages archived in the repository")
+	packagesListCmd.Flags().BoolVar(&archivedFilter, "archived", false, "return packages that do not have the latest version in a repository")
 	packagesCmd.AddCommand(packagesListCmd)
 }
 
@@ -45,19 +45,20 @@ var (
 				return fmt.Errorf(
 					"archived filter can only be used when filtering by repository")
 			}
-
-			pkgs, err := client.ListPackages(client.DefaultClient(), Config, repositoryFilter)
+			var pkgs model.Output
+			var err error
+			switch Config.Technology {
+			case "r":
+				pkgs, err = client.ListGenericPackages[model.RPackage](client.DefaultClient(), Config, repositoryFilter, archivedFilter, nameFilter)
+			case "python":
+				pkgs, err = client.ListGenericPackages[model.PythonPackage](client.DefaultClient(), Config, repositoryFilter, archivedFilter, nameFilter)
+			case "all":
+				pkgs, err = client.ListGenericPackages[model.Package](client.DefaultClient(), Config, repositoryFilter, archivedFilter, nameFilter)
+			default:
+				return fmt.Errorf("undefined technology %s", Config.Technology)
+			}
 			if err != nil {
 				return err
-			}
-
-			if archivedFilter {
-				pkgs = model.FilterArchived(pkgs)
-			}
-			if nameFilter != "" {
-				if pkgs, err = model.FilterByName(pkgs, nameFilter); err != nil {
-					return err
-				}
 			}
 
 			if out, err := formatOutput(pkgs); err != nil {
